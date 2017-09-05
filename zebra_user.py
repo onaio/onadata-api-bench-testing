@@ -60,12 +60,22 @@ def user_profile(user):
         name='/profiles/[username]')
 
 
+def orgs_shared_with(user):
+    """
+    Orgs endpoint for orgs shared with the user.
+    """
+    user.client.get(
+        api_path('orgs'),
+        params={'shared_with': user.username},
+        auth=user.auth)
+
+
 class UserBehaviour(TaskSet):
     """
     API user behaviour.
     """
     auth = None
-    tasks = {user_profile: 1}
+    tasks = {user_profile: 1, orgs_shared_with: 1}
 
     def on_start(self):
         """
