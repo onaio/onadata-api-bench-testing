@@ -67,7 +67,14 @@ def orgs_shared_with(user):
     user.client.get(
         api_path('orgs'),
         params={'shared_with': user.username},
-        auth=user.auth)
+        auth=user.auth, name='/orgs?shared_with=[username]')
+
+
+def projects(user):
+    """
+    Projects endpoint.
+    """
+    user.client.get(api_path('projects'), auth=user.auth, name='/projects')
 
 
 class UserBehaviour(TaskSet):
@@ -75,7 +82,7 @@ class UserBehaviour(TaskSet):
     API user behaviour.
     """
     auth = None
-    tasks = {user_profile: 1, orgs_shared_with: 1}
+    tasks = {user_profile: 1, orgs_shared_with: 2, projects: 2}
 
     def on_start(self):
         """
