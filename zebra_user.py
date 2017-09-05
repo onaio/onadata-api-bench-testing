@@ -5,9 +5,9 @@ Ona API locust file.
 import logging
 import random
 
-from locust import HttpLocust, TaskSet
 from requests.auth import AuthBase, HTTPDigestAuth
 
+from locust import HttpLocust, TaskSet
 from users import USERS
 
 logger = logging.getLogger(__name__)  # pylint: disable=C0103
@@ -41,7 +41,7 @@ def login(user):
     """
     Login to API.
     """
-    response = user.client.get(api_path('user'), auth=user.auth)
+    response = user.client.get(api_path('user'), auth=user.auth, name='/user')
     user.temp_token = response.json().get('temp_token')
     user.username = response.json().get('username')
     user.auth = TempTokenAuth(user.temp_token) \
@@ -54,7 +54,10 @@ def user_profile(user):
     """
     if not user.username:
         login(user)
-    user.client.get(api_path('profiles/' + user.username), auth=user.auth)
+    user.client.get(
+        api_path('profiles/' + user.username),
+        auth=user.auth,
+        name='/profiles/[username]')
 
 
 class UserBehaviour(TaskSet):
