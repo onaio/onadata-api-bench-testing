@@ -4,6 +4,7 @@ Ona API locust file.
 """
 import logging
 import random
+import uuid
 
 from requests.auth import AuthBase, HTTPDigestAuth
 
@@ -76,6 +77,26 @@ def projects(user):
     Projects endpoint.
     """
     user.client.get(api_path('projects'), auth=user.auth, name='/projects')
+
+
+def publish_form(user):
+    """
+    Publish an XLS Form
+    """
+    id_string = 'a' + uuid.uuid4().hex[:8]
+    text_xls_form = [
+        "survey\r\n"
+        ",type,name,label\r\n"
+        ",text,fruit,Fruit\r\n"
+        "settings\r\n"
+        "form_title,form_id\r\n"
+        ",Demo %s,%s\r\n" % (id_string, id_string)
+    ]
+    data = {'text_xls_form': text_xls_form}
+    response = user.client.post(
+        api_path('forms'), auth=user.auth, data=data, name='/forms[publish]')
+    if response.status_code == 201:
+        user.id_string = response.json.get('id_string')
 
 
 class UserBehaviour(TaskSet):
