@@ -5,13 +5,19 @@ Ona API locust file.
 import logging
 import random
 import uuid
+import graphite
+import os
 
+from statsd import TCPStatsClient, StatsClient
+from locust import HttpLocust, TaskSet
 from requests.auth import AuthBase, HTTPDigestAuth
-
 from locust import HttpLocust, TaskSet
 from users import USERS
 
 logger = logging.getLogger(__name__)  # pylint: disable=C0103
+statsd = StatsClient(host=os.environ.get('STATSD_HOST', '127.0.0.1'),
+                     port=os.environ.get('STATSD_PORT', 8125),
+                     prefix=os.environ.get('STATSD_PREFIX', 'locust'))
 
 
 # pylint: disable=R0903
@@ -55,10 +61,14 @@ def user_profile(user):
     """
     if not user.username:
         login(user)
-    user.client.get(
+    with statsd.timer('profiles_time'):
+      response = user.client.get(
         api_path('profiles/' + user.username),
         auth=user.auth,
         name='/profiles/[username]')
+      statsd.incr('profiles_%s' % response.status_code)
+    statsd.incr('profiles_no_requests')
+    statsd.incr('no_requests')
 
 
 def orgs_shared_with(user):
