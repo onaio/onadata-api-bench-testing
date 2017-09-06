@@ -96,7 +96,27 @@ def publish_form(user):
     response = user.client.post(
         api_path('forms'), auth=user.auth, data=data, name='/forms[publish]')
     if response.status_code == 201:
-        user.id_string = response.json.get('id_string')
+        user.id_string = response.json().get('id_string')
+
+
+def post_submission(user):
+    """
+    Makes submission to /[username]/submission endpoint.
+    """
+    if not hasattr(user, 'id_string'):
+        publish_form(user)
+    instance_id = '%s' % uuid.uuid4()
+    data = ('<?xml version="1.0" encoding="UTF-8" ?>'
+            '<%(id_string)s id="%(id_string)s">'
+            '<fruit>mango</fruit>'
+            '<meta><instanceID>%(instance_id)s</instanceID></meta>'
+            '</%(id_string)s>') % {
+                'id_string': user.id_string,
+                'instance_id': instance_id
+            }
+    files = {'xml_submission_file': ('submission.xml', data)}
+    user.client.post(
+        '/' + user.username + '/submission', files=files, name='/submission')
 
 
 class UserBehaviour(TaskSet):
@@ -104,7 +124,13 @@ class UserBehaviour(TaskSet):
     API user behaviour.
     """
     auth = None
-    tasks = {user_profile: 1, orgs_shared_with: 2, projects: 2}
+    tasks = {
+        user_profile: 1,
+        orgs_shared_with: 2,
+        projects: 2,
+        publish_form: 1,
+        post_submission: 5
+    }
 
     def on_start(self):
         """
