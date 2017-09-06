@@ -25,7 +25,7 @@ class TempTokenAuth(AuthBase):
         self.token = token
 
     def __call__(self, request):
-        request.headers['Authorization'] = 'TempToken: %s' % self.token
+        request.headers['Authorization'] = 'TempToken %s' % self.token
 
         return request
 
