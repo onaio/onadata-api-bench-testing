@@ -67,7 +67,8 @@ def orgs_shared_with(user):
     user.client.get(
         api_path('orgs'),
         params={'shared_with': user.username},
-        auth=user.auth, name='/orgs?shared_with=[username]')
+        auth=user.auth,
+        name='/orgs?shared_with=[username]')
 
 
 def projects(user):
