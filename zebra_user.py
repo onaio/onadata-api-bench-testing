@@ -48,11 +48,18 @@ def login(user):
     """
     Login to API.
     """
-    response = user.client.get(api_path('user'), auth=user.auth, name='/user')
-    user.temp_token = response.json().get('temp_token')
-    user.username = response.json().get('username')
-    user.auth = TempTokenAuth(user.temp_token) \
-        if hasattr(user, 'temp_token') else None
+    with statsd.timer('user_time'):
+        response = user.client.get(api_path('user'), auth=user.auth, name='/user')
+        statsd.incr('user_%s' % response.status_code)
+        if response.status_code == 200:
+            user.temp_token = response.json().get('temp_token')
+            user.username = response.json().get('username')
+            user.auth = TempTokenAuth(user.temp_token) \
+                if hasattr(user, 'temp_token') else None
+        else:
+            logger.info(response.content)
+    statsd.incr('user_no_requests')
+    statsd.incr('no_requests')
 
 
 def user_profile(user):
@@ -75,18 +82,25 @@ def orgs_shared_with(user):
     """
     Orgs endpoint for orgs shared with the user.
     """
-    user.client.get(
-        api_path('orgs'),
-        params={'shared_with': user.username},
-        auth=user.auth,
-        name='/orgs?shared_with=[username]')
-
+    with statsd.timer('orgs'):
+        response = user.client.get(
+            api_path('orgs'),
+            params={'shared_with': user.username},
+            auth=user.auth,
+            name='/orgs?shared_with=[username]')
+        statsd.incr('orgs_%s' % response.status_code)
+    statsd.incr('orgs_no_requests')
+    statsd.incr('no_requests')
 
 def projects(user):
     """
     Projects endpoint.
     """
-    user.client.get(api_path('projects'), auth=user.auth, name='/projects')
+    with statsd.timer('projects'):
+        response = user.client.get(api_path('projects'), auth=user.auth, name='/projects')
+        statsd.incr('projects_%s' % response.status_code)
+    statsd.incr('projects_no_requests')
+    statsd.incr('no_requests')
 
 
 def publish_form(user):
@@ -103,10 +117,17 @@ def publish_form(user):
         ",Demo %s,%s\r\n" % (id_string, id_string)
     ]
     data = {'text_xls_form': text_xls_form}
-    response = user.client.post(
-        api_path('forms'), auth=user.auth, data=data, name='/forms[publish]')
-    if response.status_code == 201:
-        user.id_string = response.json().get('id_string')
+    with statsd.timer('forms'):
+        response = user.client.post(
+            api_path('forms'), auth=user.auth, data=data, name='/forms[publish]')
+        statsd.incr('forms_%s' % response.status_code)
+        if response.status_code == 201:
+            user.id_string = response.json().get('id_string')
+        else:
+            logger.info(response.content)
+
+    statsd.incr('forms_no_requests')
+    statsd.incr('no_requests')
 
 
 def post_submission(user):
@@ -125,8 +146,12 @@ def post_submission(user):
                 'instance_id': instance_id
             }
     files = {'xml_submission_file': ('submission.xml', data)}
-    user.client.post(
-        '/' + user.username + '/submission', files=files, name='/submission')
+    with statsd.timer('submission'):
+        response = user.client.post(
+            '/' + user.username + '/submission', auth=user.digest_auth, files=files, name='/submission')
+        statsd.incr('submission_%s' % response.status_code)
+    statsd.incr('submission_no_requests')
+    statsd.incr('no_requests')
 
 
 class UserBehaviour(TaskSet):
@@ -135,11 +160,11 @@ class UserBehaviour(TaskSet):
     """
     auth = None
     tasks = {
-        user_profile: 1,
-        orgs_shared_with: 2,
-        projects: 2,
-        publish_form: 1,
-        post_submission: 5
+        user_profile: 0,
+        orgs_shared_with: 1,
+        projects: 0,
+        publish_form: 0,
+        post_submission: 0
     }
 
     def on_start(self):
@@ -154,6 +179,7 @@ class UserBehaviour(TaskSet):
                 "\n---------------------------------------------------------",
                 random_user[0])
             self.auth = HTTPDigestAuth(*random_user)
+            self.digest_auth = HTTPDigestAuth(*random_user)
             login(self)
 
 
